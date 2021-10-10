@@ -6,7 +6,7 @@
 
 
 .DATA
-matrix db 128, 64, 32, 16, 8, 4, 136, 142, 40   ; all the positions of the playing grid
+matrix db 128, 64, 32, 16, 8, 4, 136, 142, 0   ; all the positions of the playing grid
 ; 1 | 2 | 3
 ;----------- 
 ; 4 | 5 | 6    
@@ -20,23 +20,55 @@ matrix db 128, 64, 32, 16, 8, 4, 136, 142, 40   ; all the positions of the playi
 ;	E - it contains a medium X
 ;	F - it contains a small X
 ;	G - highlight this cell
-;	H - blank  
+;	H - blank 
+
+player1 db 10000100b
+; status byte for player 1, of the form AABBCCDD
+; AA - number of large pips left, ranges from 10 to 00
+; BB - number of medium pips left, ranges from 10 to 00
+; CC - number of small pips left, ranges from 10 to 00
+; DD - no purpose rn
+
+player2 db 10101000b 
+; status byte for player 1, of the form AABBCCDD
+; AA - number of large pips left, ranges from 10 to 00
+; BB - number of medium pips left, ranges from 10 to 00
+; CC - number of small pips left, ranges from 10 to 00
+; DD - no purpose rn
+
+currentP db 0
+; indicates current player, if 0 it is player 1 else player 2
+; just XOR it with 11111111b after every turn  
 
 
    
 bigO db 'O' 
 medO db 'o'
 smlO db '.'
+; different pip sizes for O
 
 bigX db 'X' 
 medX db 'x'
-smlX db '*' 
+smlX db '*'
+; different pip sizes for X 
 
 blnk db ' '         
 
 hbar db '-'
 vbar db '|'
-cbar db '+'
+cbar db '+' 
+; used for drawing the grid itself                      
+                      
+buff db '%','$'
+; just a buffer symbol
+
+p1str db "Player 1 $"
+p2str db "Player 2 $" 
+lpipstr db "Large pips left :$"
+mpipstr db "Medium pips left:$"
+spipstr db "Small pips left :$" 
+currentstr db "Current Turn $"
+; misc strings for printing
 
 .CODE 
 .STARTUP     
@@ -49,7 +81,10 @@ cbar db '+'
   
   
   
-  
+ 
+  CALL draw_matrix
+  resume:   
+  XOR currentP, 11111111b
   CALL draw_matrix
   
   
@@ -77,16 +112,24 @@ cbar db '+'
   ; functions below this line, should not be run directly 
 ; -----------------------------------------------------------------------------
   draw_matrix PROC 
-    ; push all registers to preserve their values 
-    PUSH AX
-    PUSH BX
-    PUSH CX
-    PUSH DX 
+     
+    
     
     MOV AX, 0
     MOV BX, 0
     MOV CX, 0
     MOV DX, 0
+    
+    
+
+    MOV AX, 0700h  ; function 07, AL=0 means scroll whole window
+    MOV BH, 07h    ; character attribute = white on black
+    MOV CX, 0  ; row = 0, col = 0
+    MOV DX, 0184Fh  ; row = 24 (0x18), col = 79 (0x4f)
+    INT 10h        
+
+  
+    
     
     
     MOV DL, 38                ; top horizontal bar
@@ -290,26 +333,203 @@ cbar db '+'
       INC DH  
       
       POP CX
-      LOOP print_out_loop
-                      
-                     
-        
+      LOOP print_out_loop 
+      
+      
+      
+      
+     
       
     LEA SI, matrix
+     
+     
+    MOV DL, 10                ; printing Player 1 title
+    MOV DH, 5
+    MOV BX, 0fh
     
+    MOV AH, 2
+    INT 10h
+    
+    MOV DX, offset p1str
+    MOV AH, 9
+    INT 21h   
+    
+    
+    MOV DL, 8                ; printing large pips
+    MOV DH, 7  
+    MOV AH, 2
+    INT 10h
+    
+    MOV DX, offset lpipstr
+    MOV AH, 9
+    INT 21h 
+    
+    MOV AL, player1
+    AND AL, 11000000b
+    SHR AL, 6
+    ADD AL, 30h
+    MOV buff, AL
+    
+    MOV DX, offset buff
+    MOV AH, 9
+    INT 21h
+    
+    
+    MOV DL, 8                ; printing medium pips
+    MOV DH, 8   
+    MOV AH, 2
+    INT 10h
+    
+    MOV DX, offset mpipstr
+    MOV AH, 9
+    INT 21h
+    
+    MOV AL, player1
+    AND AL, 00110000b
+    SHR AL, 4
+    ADD AL, 30h
+    MOV buff, AL
+    
+    MOV DX, offset buff
+    MOV AH, 9
+    INT 21h 
+    
+    
+    MOV DL, 8                ; printing small pips
+    MOV DH, 9  
+    MOV AH, 2
+    INT 10h
+    
+    MOV DX, offset spipstr
+    MOV AH, 9
+    INT 21h
+    
+    MOV AL, player1
+    AND AL, 00001100b
+    SHR AL, 2
+    ADD AL, 30h
+    MOV buff, AL
+    
+    MOV DX, offset buff
+    MOV AH, 9
+    INT 21h
+    
+    MOV AL, currentP
+    CMP AL, 0
+    JNZ Player2Print 
+    
+    MOV DL, 8                ; printing current turn indicator
+    MOV DH, 12
+    MOV AH, 2
+    INT 10h
+    
+    MOV DX, offset currentstr
+    MOV AH, 9
+    INT 21h
+    
+    
+    
+    
+    
+    
+    
+    Player2Print:
+    
+    MOV DL, 56                ; printing Player 2 title
+    MOV DH, 5
+    MOV BX, 0fh
+    
+    MOV AH, 2
+    INT 10h
+    
+    MOV DX, offset p2str
+    MOV AH, 9
+    INT 21h   
+    
+    
+    MOV DL, 54                ; printing large pips
+    MOV DH, 7  
+    MOV AH, 2
+    INT 10h
+    
+    MOV DX, offset lpipstr
+    MOV AH, 9
+    INT 21h 
+    
+    MOV AL, player2
+    AND AL, 11000000b
+    SHR AL, 6
+    ADD AL, 30h
+    MOV buff, AL
+    
+    MOV DX, offset buff
+    MOV AH, 9
+    INT 21h
+    
+    
+    MOV DL, 54                ; printing medium pips
+    MOV DH, 8   
+    MOV AH, 2
+    INT 10h
+    
+    MOV DX, offset mpipstr
+    MOV AH, 9
+    INT 21h
+    
+    MOV AL, player2
+    AND AL, 00110000b
+    SHR AL, 4
+    ADD AL, 30h
+    MOV buff, AL
+    
+    MOV DX, offset buff
+    MOV AH, 9
+    INT 21h 
+    
+    
+    MOV DL, 54                ; printing small pips
+    MOV DH, 9  
+    MOV AH, 2
+    INT 10h
+    
+    MOV DX, offset spipstr
+    MOV AH, 9
+    INT 21h
+    
+    MOV AL, player2
+    AND AL, 00001100b
+    SHR AL, 2
+    ADD AL, 30h
+    MOV buff, AL
+    
+    MOV DX, offset buff
+    MOV AH, 9
+    INT 21h
+    
+    MOV AL, currentP
+    CMP AL, 0
+    JZ exitPrinter 
+    
+    MOV DL, 54                ; printing current turn indicator
+    MOV DH, 12
+    MOV AH, 2
+    INT 10h
+    
+    MOV DX, offset currentstr
+    MOV AH, 9
+    INT 21h
     
     
     
     
     
 
-     
-    ; pop all registers
-    POP DX
-    POP CX
-    POP BX
-    POP AX  
-  draw_matrix ENDP       
+   exitPrinter:     
+   ret
+  draw_matrix ENDP 
+  
+  
+    
   
   
   

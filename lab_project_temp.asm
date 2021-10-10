@@ -82,8 +82,7 @@ currentstr db "Current Turn $"
   
   
  
-  CALL draw_matrix
-  resume:   
+  CALL draw_matrix 
   XOR currentP, 11111111b
   CALL draw_matrix
   

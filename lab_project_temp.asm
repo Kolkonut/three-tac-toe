@@ -6,7 +6,9 @@
 
 
 .DATA
-matrix db 128, 64, 32, 16, 8, 4, 136, 142, 0   ; all the positions of the playing grid
+
+         
+matrix db 0, 0, 0, 0, 0, 0, 0, 0, 0    ; all the positions of the playing grid
 ; 1 | 2 | 3
 ;----------- 
 ; 4 | 5 | 6    
@@ -22,7 +24,7 @@ matrix db 128, 64, 32, 16, 8, 4, 136, 142, 0   ; all the positions of the playin
 ;	G - highlight this cell
 ;	H - blank 
 
-player1 db 10000100b
+player1 db 10101000b
 ; status byte for player 1, of the form AABBCCDD
 ; AA - number of large pips left, ranges from 10 to 00
 ; BB - number of medium pips left, ranges from 10 to 00
@@ -69,6 +71,11 @@ mpipstr db "Medium pips left:$"
 spipstr db "Small pips left :$" 
 currentstr db "Current Turn $"
 ; misc strings for printing
+str db "Enter the location and symbol $" 
+
+loc dw 00h ; Stores the location (user input)
+sym db 00h ; Stores the pip value (user input)       
+count db 00h    ; Stores the count of pips 
 
 .CODE 
 .STARTUP     
@@ -82,9 +89,15 @@ currentstr db "Current Turn $"
   
   
  
-  CALL draw_matrix 
-  XOR currentP, 11111111b
   CALL draw_matrix
+  HERE: 
+  CALL user_input   
+  CALL player1_find 
+  CALL draw_matrix 
+  XOR currentP,11111111b
+  CALL player2_find
+  CALL draw_matrix
+  JMP HERE
   
   
   
@@ -110,7 +123,9 @@ currentstr db "Current Turn $"
   
   ; functions below this line, should not be run directly 
 ; -----------------------------------------------------------------------------
-  draw_matrix PROC 
+  draw_matrix PROC
+    LEA SI, matrix
+   
      
     
     
@@ -526,12 +541,467 @@ currentstr db "Current Turn $"
    exitPrinter:     
    ret
   draw_matrix ENDP 
-  
-  
+  ;-------------------------------------------------------------------------------------------
+  ; 
+  ; ---------Function 1 -----------------------------   
+        ; user input - Takes the input from the user as '1A'
+        ; Need to display the cursor at the bottom
     
-  
-  
-  
+     
+           
+      user_input PROC
+                    
+        MOV AX, 0
+        MOV BX, 0
+        MOV CX, 0
+        MOV DX, 0
+        
+        ; Setting cursor position 
+            
+        
+        MOV DL, 10               
+        MOV DH, 20  
+        MOV AH, 2
+        INT 10h
+    
+    
+        lea dx,str
+        mov ah,09h
+        int 21h  
+        
+        ; stores the location 
+        mov ah,01h
+        int 21h 
+        mov dl,al
+        sub dl,31h
+        mov loc,dx 
+        
+        ; stores the pips value
+        
+        mov ah,01h
+        int 21h    
+        mov sym,al  
+        mov si,0h
+      user_input ENDP   
+        
+        RET
+  ;--------------------------- Function-player2_find----------------------;
+      
+        ;Player1_find-  Finding if A,B or C is avaiable  
+        
+        
+        ;Player1_find-  Finding if A,B or C is avaiable  
+        
+        
+        player2_find PROC 
+        MOV AX, 0
+        MOV BX, 0
+        MOV CX, 0
+        MOV DX, 0  
+        
+        
+        MOV AL,player2 
+        MOV BL , sym
+        ; if pip == A (Large Pip)
+        
+        MOV BL , sym 
+        XOR BL,41H  ; Check if its equal to 41H(After converting into hexadecimal)
+        CMP BL,0h   ; Compare with zero 
+        JNZ med     ; If not 0h move to pip B
+        AND AL, 11000000b
+        SHR AL, 6 
+        ; After attaining the value check if A values are present are not.
+        ; The count should be greater than 0
+        MOV DL,AL
+        CMP DL,0H             
+        MOV count,AL
+        
+        JBE invalid ; If the count == 0 , ask input again  
+        CALL locationp2_A 
+        ; Subtract 1 from the count (is left)   
+        MOV BL,player2
+        MOV AL,count
+        DEC AL
+        SHL AL,6
+        AND BL, 00111111b
+        OR AL,BL  
+        MOV player2,AL
+        
+        ret
+        
+        
+        ; if pip == B (medium pips)  (same method applied as A)
+        
+        med: 
+        MOV BL , sym
+        XOR BL,42H    
+        CMP bl,0h
+        JNZ small
+        AND AL, 00110000b
+        SHR AL, 4   
+        MOV DL,AL
+        CMP DL,0H   
+        MOV count,AL
+        JBE invalid  
+        CALL locationp2_B
+        MOV BL,player2
+        MOV AL,count
+        DEC AL
+        SHL AL,4
+        AND BL, 11001111b
+        OR AL,BL  
+        MOV player2,AL
+        ret
+        
+        ; if pip == C (small pips)
+        small:
+        MOV BL , sym
+        XOR BL,43h 
+        CMP bl,0h
+        JNZ invalid ;  If not equal to A,B,C ask user to input again
+        AND AL, 00001100b
+        SHR AL, 2    
+        MOV DL,AL
+        CMP DL,0H   
+        MOV count,AL
+        JBE invalid 
+        CALL locationp2_C  
+        MOV BL,player2
+        MOV AL,count
+        DEC AL
+        SHL AL,2
+        AND BL, 11110011b
+        OR AL,BL  
+        MOV player2,AL 
+        ret   
+        
+        
+        
+        invalid:  
+        
+        CALL user_input       ; Ask user the input 
+        CALL player2_find     ; Perform this function again 
+        
+        player2_find ENDP
+        ret
+        
+        
+    ;---------------------------FUNCTION 3-----------------------;
+        
+        
+        locationp2_A PROC     
+        ; if the location is more than 9 the input is invalid 
+        MOV AX, 0
+        MOV BX, 0
+        MOV CX, 0
+        MOV DX, 0
+         
+        MOV dx,loc ; Store the location in DX  
+        MOV bl , sym ; store the weight 
+        LEA si,matrix ; iterate element  
+        ; Add values to iterate the location 
+        add si,dx  
+        MOV dl,[si]
+        AND dl,10010000b    ; Check if A contains in the current location 
+        CMP dl,0
+        JNZ again: ; if not zero jump   
+        OR dl,00010000b 
+        MOV [si],dl
+        
+        ret                  
+        
+        
+        
+        again:  
+        
+        CALL user_input   
+        CALL player2_find
+        locationp2_A ENDP
+        ret
+             
+    ;----------------------------FUNCTION LOCATION B ---------------------      
+             
+        locationp2_B PROC 
+        MOV AX, 0
+        MOV BX, 0
+        MOV CX, 0
+        MOV DX, 0
+            
+        
+         
+        MOV dx,loc ; Store the location in DX  
+        MOV bl , sym ; store the weight 
+        LEA si,matrix ; iterate element  
+        ; Add values to iterate the location 
+        add si,dx  
+        MOV dl,[si]
+        AND dl,11011000b
+        CMP dl,0
+        JNZ again_2: ; if not zero jump   
+        OR dl,00001000b 
+        MOV [si],dl
+        
+        ret                  
+        
+        
+        
+        again_2:  ; if weight of the pip does not satisfy then the input location is wrong
+        
+        CALL user_input   
+        CALL player2_find
+        locationp2_B ENDP
+        ret
+        
+                    
+                    
+         
+         
+         
+         
+         
+        ;----------------------FUNCTION LOCATION_C----------------------------;             
+        
+        locationp2_C PROC     
+        ; if the location is more than 9 the input is invalid
+        MOV AX, 0
+        MOV BX, 0
+        MOV CX, 0
+        MOV DX, 0 
+         
+        MOV dx,loc ; Store the location in DX  
+        MOV bl , sym ; store the weight 
+        LEA si,matrix ; iterate element  
+        ; Add values to iterate the location 
+        add si,dx  
+        MOV dl,[si]
+        AND dl,11111100b
+        CMP dl,0
+        JNZ again_3: ; if not zero jump   
+        OR dl,00000100b 
+        MOV [si],dl
+        ; Add or logic here 
+        ret                  
+        
+        
+        
+        again_3:  ; if weight of the pip does not satisfy then the input location is wrong
+        
+        CALL user_input   
+        CALL player2_find
+        locationp2_C ENDP
+        ret      
+        
+        
+        
+        ;--------------------------- Function-player1_find----------------------;
+      
+        ;Player1_find-  Finding if A,B or C is avaiable  
+        
+        
+        player1_find PROC 
+        MOV AX, 0
+        MOV BX, 0
+        MOV CX, 0
+        MOV DX, 0  
+        
+        
+        MOV AL,player1 
+        MOV BL , sym
+        ; if pip == A (Large Pip)
+        
+        MOV BL , sym 
+        XOR BL,41H  ; Check if its equal to 41H(After converting into hexadecimal)
+        CMP BL,0h   ; Compare with zero 
+        JNZ med2     ; If not 0h move to pip B
+        AND AL, 11000000b
+        SHR AL, 6 
+        ; After attaining the value check if A values are present are not.
+        ; The count should be greater than 0
+        MOV DL,AL
+        CMP DL,0H      
+        MOV count,AL
+        
+        JBE invalid2 ; If the count == 0 , ask input again  
+        CALL locationp1_A 
+        ; Subtract 1 from the count (is left)   
+        MOV BL,player1
+        MOV AL,count
+        DEC AL
+        SHL AL,6
+        AND BL, 00111111b
+        OR AL,BL  
+        MOV player1,AL 
+        
+        ret
+        
+        
+        ; if pip == B (medium pips)  (same method applied as A)
+        
+        med2: 
+        MOV BL , sym
+        XOR BL,42H    
+        CMP bl,0h
+        JNZ small2
+        AND AL, 00110000b
+        SHR AL, 4   
+        MOV DL,AL
+        CMP DL,0H
+        MOV count,AL
+        JBE invalid2 
+        CALL locationp1_B
+        MOV BL,player1
+        MOV AL,count
+        DEC AL
+        SHL AL,4
+        AND BL, 11001111b
+        OR AL,BL  
+        MOV player1,AL
+        ret
+        
+        ; if pip == C (small pips)
+        small2:
+        MOV BL , sym
+        XOR BL,43h 
+        CMP bl,0h
+        JNZ invalid2 ;  If not equal to A,B,C ask user to input again
+        AND AL, 00001100b
+        SHR AL, 2    
+        MOV DL,AL
+        CMP DL,0H
+        MOV count,AL
+        JBE invalid2
+        CALL locationp1_C  
+        MOV BL,player1
+        MOV AL,count
+        DEC AL
+        SHL AL,2
+        AND BL, 11110011b
+        OR AL,BL  
+        MOV player1,AL  
+        ret   
+        
+        
+        
+        invalid2:  
+        
+        CALL user_input       ; Ask user the input 
+        CALL player1_find     ; Perform this function again 
+        
+        player1_find ENDP
+        ret
+        
+        
+    ;---------------------------FUNCTION 3-----------------------;
+        
+        
+        locationp1_A PROC     
+        ; if the location is more than 9 the input is invalid 
+        MOV AX, 0
+        MOV BX, 0
+        MOV CX, 0
+        MOV DX, 0
+         
+        MOV dx,loc ; Store the location in DX  
+        MOV bl , sym ; store the weight 
+        LEA si,matrix ; iterate element  
+        ; Add values to iterate the location 
+        add si,dx  
+        MOV dl,[si]
+        AND dl,10010000b    ; Check if A contains in the current location 
+        CMP dl,0
+        JNZ again4: ; if not zero jump   
+        OR dl,10000000b 
+        MOV [si],dl
+        
+        ret                  
+        
+        
+        
+        again4:  
+        
+        CALL user_input   
+        CALL player1_find
+        locationp1_A ENDP
+        ret
+             
+    ;----------------------------FUNCTION LOCATION B ---------------------      
+             
+        locationp1_B PROC 
+        MOV AX, 0
+        MOV BX, 0
+        MOV CX, 0
+        MOV DX, 0
+            
+        
+         
+        MOV dx,loc ; Store the location in DX  
+        MOV bl , sym ; store the weight 
+        LEA si,matrix ; iterate element  
+        ; Add values to iterate the location 
+        add si,dx  
+        MOV dl,[si]
+        AND dl,11011000b
+        CMP dl,0
+        JNZ again_5: ; if not zero jump   
+        OR dl,01000000b 
+        MOV [si],dl
+        
+        ret                  
+        
+        
+        
+        again_5:  ; if weight of the pip does not satisfy then the input location is wrong
+        
+        CALL user_input   
+        CALL player1_find
+        locationp1_B ENDP
+        ret
+        
+                    
+                    
+         
+         
+         
+         
+         
+        ;----------------------FUNCTION LOCATION_C----------------------------;             
+        
+        locationp1_C PROC     
+        ; if the location is more than 9 the input is invalid
+        MOV AX, 0
+        MOV BX, 0
+        MOV CX, 0
+        MOV DX, 0 
+         
+        MOV dx,loc ; Store the location in DX  
+        MOV bl , sym ; store the weight 
+        LEA si,matrix ; iterate element  
+        ; Add values to iterate the location 
+        add si,dx  
+        MOV dl,[si]
+        AND dl,11111100b
+        CMP dl,0
+        JNZ again_6: ; if not zero jump   
+        OR dl,00100000b 
+        MOV [si],dl
+        ; Add or logic here 
+        ret                  
+        
+        
+        
+        again_6:  ; if weight of the pip does not satisfy then the input location is wrong
+        
+        CALL user_input   
+        CALL player1_find
+        locationp1_C ENDP
+        ret
+                 
+                 
+        
+        
+
+
   toend:      
 .EXIT 
 END
+

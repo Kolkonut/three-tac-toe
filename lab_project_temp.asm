@@ -24,15 +24,17 @@ matrix db 0, 0, 0, 0, 0, 0, 0, 0, 0    ; all the positions of the playing grid
 ;	G - highlight this cell
 ;	H - blank 
 
-player1 db 10101000b
-; status byte for player 1, of the form AABBCCDD
+player1 db 168
+; status byte for player 1, of the form AABBCCDD 
+; default value is 10101000b
 ; AA - number of large pips left, ranges from 10 to 00
 ; BB - number of medium pips left, ranges from 10 to 00
 ; CC - number of small pips left, ranges from 10 to 00
 ; DD - no purpose rn
 
-player2 db 10101000b 
-; status byte for player 1, of the form AABBCCDD
+player2 db 168
+; status byte for player 2, of the form AABBCCDD 
+; default value is 10101000b
 ; AA - number of large pips left, ranges from 10 to 00
 ; BB - number of medium pips left, ranges from 10 to 00
 ; CC - number of small pips left, ranges from 10 to 00
@@ -54,11 +56,11 @@ medX db 'x'
 smlX db '*'
 ; different pip sizes for X 
 
-blnk db ' '         
+blnk db ' '  
+; blank pip       
 
-hbar db '-'
-vbar db '|'
-cbar db '+' 
+grid1 db ' | | ', '$'
+grid2 db '-+-+-', '$'
 ; used for drawing the grid itself                      
                       
 buff db '%','$'
@@ -70,8 +72,8 @@ lpipstr db "Large pips left :$"
 mpipstr db "Medium pips left:$"
 spipstr db "Small pips left :$" 
 currentstr db "Current Turn $"
-; misc strings for printing
-str db "Enter the location and symbol $" 
+inputstr db "Enter the location and symbol (1-9, ABC) :$"
+invalidstr db "Invalid Input. Please re-enter: $" 
 
 loc dw 00h ; Stores the location (user input)
 sym db 00h ; Stores the pip value (user input)       
@@ -92,14 +94,17 @@ count db 00h    ; Stores the count of pips
   CALL draw_matrix
   HERE: 
   CALL user_input   
-  CALL player1_find 
+  CALL player1_find
+  XOR currentP,11111111b 
   CALL draw_matrix 
-  XOR currentP,11111111b
+   
+  CALL user_input 
   CALL player2_find
+  XOR currentP,11111111b
   CALL draw_matrix
   JMP HERE
   
-  
+  ; add logic to check win/draw after each turn
   
   
   
@@ -122,7 +127,9 @@ count db 00h    ; Stores the count of pips
  
   
   ; functions below this line, should not be run directly 
-; -----------------------------------------------------------------------------
+; ----------------------------------------------------------------------------- 
+; function to draw the matrix, player counts, and display current turn
+; does not change any values
   draw_matrix PROC
     LEA SI, matrix
    
@@ -146,120 +153,59 @@ count db 00h    ; Stores the count of pips
     
     
     
-    MOV DL, 38                ; top horizontal bar
-    MOV DH, 12
-    MOV BX, 0fh
-    
-    MOV AH, 2
-    INT 10h
-    
-    MOV AH, 9
-    MOV AL, hbar
-    MOV CL, 5
-    INT 10h  
-    
-    
-    
-    MOV DL, 38                  ; bottom horizontal bar
-    MOV DH, 14
-    MOV BX, 0fh
-    
-    MOV AH, 2
-    INT 10h
-    
-    MOV AH, 9
-    MOV AL, hbar
-    MOV CL, 5
-    INT 10h
-           
-           
-           
-    MOV CX, 5                     ; left vertical bar 
-    MOV DL, 39
+    MOV DL, 38                ; first row
     MOV DH, 11
-    mat_draw_loop1:
-    
     MOV BX, 0fh
-    
     MOV AH, 2
     INT 10h
     
+    MOV DX, offset grid1
     MOV AH, 9
-    MOV AL, vbar
-    PUSH CX
-    MOV CL, 1
-    INT 10h
-    POP CX
-    INC DH
-    loop mat_draw_loop1  
+    INT 21h
     
-    
-    MOV CX, 5                       ; right vertical bar 
-    MOV DL, 41
-    MOV DH, 11
-    mat_draw_loop2:
-    
-    MOV BX, 0fh
-    
-    MOV AH, 2
-    INT 10h
-    
-    MOV AH, 9
-    MOV AL, vbar
-    PUSH CX
-    MOV CL, 1
-    INT 10h
-    POP CX
-    INC DH
-    loop mat_draw_loop2
-    
-    MOV DL, 39                        ; top left crossbar
+    MOV DL, 38                ; second row
     MOV DH, 12
     MOV BX, 0fh
-    
     MOV AH, 2
     INT 10h
     
+    MOV DX, offset grid2
     MOV AH, 9
-    MOV AL, cbar
-    MOV CL, 1
-    INT 10h  
+    INT 21h 
     
-    MOV DL, 41                        ; top right crossbar
-    MOV DH, 12
+    MOV DL, 38                ; third row
+    MOV DH, 13
     MOV BX, 0fh
-    
     MOV AH, 2
     INT 10h
     
+    MOV DX, offset grid1
     MOV AH, 9
-    MOV AL, cbar
-    MOV CL, 1
-    INT 10h
+    INT 21h
     
-    MOV DL, 39                          ; bot left crossbar
+    MOV DL, 38                ; fourth row
     MOV DH, 14
     MOV BX, 0fh
-    
     MOV AH, 2
     INT 10h
     
+    MOV DX, offset grid2
     MOV AH, 9
-    MOV AL, cbar
-    MOV CL, 1
-    INT 10h 
+    INT 21h
     
-    MOV DL, 41                           ; bot right crossbar
-    MOV DH, 14
+    MOV DL, 38                ; fifth row
+    MOV DH, 15
     MOV BX, 0fh
-    
     MOV AH, 2
     INT 10h
     
+    MOV DX, offset grid1
     MOV AH, 9
-    MOV AL, cbar
-    MOV CL, 1
-    INT 10h
+    INT 21h 
+    
+    
+    
+   
      
      
  
@@ -359,7 +305,6 @@ count db 00h    ; Stores the count of pips
      
     MOV DL, 10                ; printing Player 1 title
     MOV DH, 5
-    MOV BX, 0fh
     
     MOV AH, 2
     INT 10h
@@ -542,10 +487,13 @@ count db 00h    ; Stores the count of pips
    ret
   draw_matrix ENDP 
   ;-------------------------------------------------------------------------------------------
-  ; 
+  
+   
   ; ---------Function 1 -----------------------------   
-        ; user input - Takes the input from the user as '1A'
-        ; Need to display the cursor at the bottom
+        ; user input - Takes the input from the user as '#S'
+        ; # is position, 1-9
+        ; S is size, A(big) B(med) C(small)
+
     
      
            
@@ -565,12 +513,12 @@ count db 00h    ; Stores the count of pips
         INT 10h
     
     
-        lea dx,str
-        mov ah,09h
-        int 21h  
+        LEA DX, inputstr
+        MOV AH, 09h
+        INT 21h  
         
         ; stores the location 
-        mov ah,01h
+        mov ah, 01h
         int 21h 
         mov dl,al
         sub dl,31h
@@ -587,11 +535,7 @@ count db 00h    ; Stores the count of pips
         RET
   ;--------------------------- Function-player2_find----------------------;
       
-        ;Player1_find-  Finding if A,B or C is avaiable  
-        
-        
-        ;Player1_find-  Finding if A,B or C is avaiable  
-        
+        ;Player2_find-  Finding if A,B or C is avaiable  
         
         player2_find PROC 
         MOV AX, 0
@@ -600,14 +544,13 @@ count db 00h    ; Stores the count of pips
         MOV DX, 0  
         
         
-        MOV AL,player2 
-        MOV BL , sym
+        MOV AL, player2 
+        MOV BL, sym
         ; if pip == A (Large Pip)
         
-        MOV BL , sym 
-        XOR BL,41H  ; Check if its equal to 41H(After converting into hexadecimal)
-        CMP BL,0h   ; Compare with zero 
-        JNZ med     ; If not 0h move to pip B
+        MOV BL, sym 
+        CMP BL, 41h   ; Compare with 41h or 'A' 
+        JNE med     ; If not A move to pip B
         AND AL, 11000000b
         SHR AL, 6 
         ; After attaining the value check if A values are present are not.
@@ -626,53 +569,50 @@ count db 00h    ; Stores the count of pips
         AND BL, 00111111b
         OR AL,BL  
         MOV player2,AL
-        
         ret
         
         
         ; if pip == B (medium pips)  (same method applied as A)
         
         med: 
-        MOV BL , sym
-        XOR BL,42H    
-        CMP bl,0h
-        JNZ small
+        MOV BL, sym
+        CMP BL, 42h
+        JNE small
         AND AL, 00110000b
         SHR AL, 4   
-        MOV DL,AL
-        CMP DL,0H   
-        MOV count,AL
+        MOV DL, AL
+        CMP DL, 0H   
+        MOV count, AL
         JBE invalid  
         CALL locationp2_B
-        MOV BL,player2
-        MOV AL,count
+        MOV BL, player2
+        MOV AL, count
         DEC AL
-        SHL AL,4
+        SHL AL, 4
         AND BL, 11001111b
-        OR AL,BL  
+        OR AL, BL  
         MOV player2,AL
         ret
         
         ; if pip == C (small pips)
         small:
-        MOV BL , sym
-        XOR BL,43h 
-        CMP bl,0h
-        JNZ invalid ;  If not equal to A,B,C ask user to input again
+        MOV BL, sym
+        CMP BL, 43h  
+        JNE invalid ;  If not equal to A,B,C ask user to input again
         AND AL, 00001100b
         SHR AL, 2    
-        MOV DL,AL
-        CMP DL,0H   
-        MOV count,AL
+        MOV DL, AL
+        CMP DL, 0H   
+        MOV count, AL
         JBE invalid 
         CALL locationp2_C  
-        MOV BL,player2
-        MOV AL,count
+        MOV BL, player2
+        MOV AL, count
         DEC AL
-        SHL AL,2
+        SHL AL, 2
         AND BL, 11110011b
-        OR AL,BL  
-        MOV player2,AL 
+        OR AL, BL  
+        MOV player2, AL 
         ret   
         
         
@@ -958,11 +898,7 @@ count db 00h    ; Stores the count of pips
         ret
         
                     
-                    
-         
-         
-         
-         
+          
          
         ;----------------------FUNCTION LOCATION_C----------------------------;             
         
@@ -996,12 +932,8 @@ count db 00h    ; Stores the count of pips
         locationp1_C ENDP
         ret
                  
-                 
-        
-        
-
+              
 
   toend:      
 .EXIT 
 END
-

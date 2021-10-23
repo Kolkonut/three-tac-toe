@@ -86,6 +86,7 @@ currentstr db "Current Turn $"
 inputstr db "Enter the location and symbol (1-9, ABC) :$"
 invalidstr db "Invalid Input. Please re-enter: $"
 winnerstr db "Player _ has won. Congratulations! $" 
+drawstr db "No player wins. It is a draw.  $"
 ; miscellaneous output strings
 
 loc dw 00h    ; Stores the location (user input)
@@ -109,7 +110,7 @@ count db 00h  ; Stores the count of pips
   
   CALL make_top_matrix
   CALL check_win
-  ; CALL check_draw
+  CALL check_draw
    
   CALL user_input 
   CALL player2_find
@@ -118,7 +119,7 @@ count db 00h  ; Stores the count of pips
   
   CALL make_top_matrix
   CALL check_win
-  ; CALL check_draw
+  CALL check_draw
   
   JMP HERE ; to continue the game
   
@@ -131,6 +132,9 @@ count db 00h  ; Stores the count of pips
   
   ; functions below this line, should not be run directly 
 ; ----------------------------------------------------------------------------- 
+; ----------------------------------------------------------------------------- 
+; ----------------------------------------------------------------------------- 
+
   
   ; function to check for draw, assuming a win has not occurred 
 ; ----------------------------------------------------------------------------- 
@@ -140,11 +144,63 @@ count db 00h  ; Stores the count of pips
     MOV AX, 0
     MOV BX, 0
     MOV CX, 0
-    MOV DX, 0 
-      
+    MOV DX, 0  
+    
+    MOV AH, currentP          ; check which player is supposed to be playing
+    CMP AH, 0FFh 
+    JNE draw_player1_check 
+    
+    draw_player2_check:
+    MOV AH, player2   
+
+    
+    draw_player1_check:
+    MOV AH, player1     
+    
+    
+    SHR AH, 2
+    CMP AH, 00h          ; if the player has no pips left
+    JZ raise_draw        ; raise a draw
+    
+    SHR AH, 2
+    CMP AH, 00h          ; if the player has big/med pips
+    JNZ exit_check_draw  ; it cannot be a draw
+    
+    
+    ; small pip count must be non-zero because if it was a zero, then 
+    ; the function would have returned or raised a draw by now
     
     
     
+    MOV CX, 9                   ; check if there is an empty slot
+    draw_empty_slot_check:
+      MOV AH, [SI]
+      CMP AH, 00h
+      JE exit_check_draw        ; if there is an empty slot, it cannot be a draw
+      INC SI                    ; move to next slot
+    LOOP draw_empty_slot_check
+    
+    ; if the loop terminates, there is no empty slot
+    ; therefore, raise a draw 
+    
+               
+    raise_draw:
+    MOV DL, 10              ; move cursor to appropriate place
+    MOV DH, 22
+    MOV AH, 2
+    INT 10h
+
+    
+    MOV DX, offset drawstr  ; print draw string
+    MOV AH, 9
+    INT 21h
+    
+    JMP toend               ; force program to end
+    
+    
+    
+    
+    exit_check_draw:
     ret
   check_draw ENDP  
 ; -----------------------------------------------------------------------------
@@ -286,20 +342,20 @@ count db 00h  ; Stores the count of pips
     XOR AL, 00000011b   ; 1 < 2 so the bits need to be swapped
     ADD AL, 48                                
     
-    MOV DL, 10                ; move cursor to appropriate place
+    MOV DL, 10          ; move cursor to appropriate place
     MOV DH, 22
     MOV AH, 2
     INT 10h
     
     LEA SI, winnerstr
     ADD SI, 7
-    MOV [SI], AL      ; update ouput string to correct winner 
+    MOV [SI], AL              ; update ouput string to correct winner 
     
     MOV DX, offset winnerstr  ; print winner string
     MOV AH, 9
     INT 21h
     
-    JMP toend  
+    JMP toend                 ; force program to end  
     
     
     
@@ -1206,7 +1262,8 @@ count db 00h  ; Stores the count of pips
 ; -----------------------------------------------------------------------------
                    
               
-
+   
+   
   toend:      
 .EXIT 
 END

@@ -1,13 +1,13 @@
 ; lab project
 ; variable size tic tac toe
+; Group 2                   
+; Sidharth Dinesh,  BT18ECE066
+; Daanish Baig,     BT18ECE067
+; Shravani Patel,   BT18ECE068
 
 .MODEL SMALL
 
-
-
-.DATA
-
-         
+.DATA     
 matrix db 0, 0, 0, 0, 0, 0, 0, 0, 0    ; all the positions of the playing grid
 ; 1 | 2 | 3
 ;----------- 
@@ -24,7 +24,18 @@ matrix db 0, 0, 0, 0, 0, 0, 0, 0, 0    ; all the positions of the playing grid
 ;	G - highlight this cell
 ;	H - blank 
 
-player1 db 168
+top_matrix db 0, 0, 0, 0, 0, 0, 0, 0, 0    ; all the topmost values of the playing grid
+; 1 | 2 | 3
+;----------- 
+; 4 | 5 | 6    
+;-----------
+; 7 | 8 | 9
+; each number is of the form AAABBBXX, set nibble to 1111 if 
+; AAAA - player 1 occupies it
+; BBBB - player 2 occupies it 
+; if all 0, then the space is empty
+
+player1 db 10101000b
 ; status byte for player 1, of the form AABBCCDD 
 ; default value is 10101000b
 ; AA - number of large pips left, ranges from 10 to 00
@@ -32,7 +43,7 @@ player1 db 168
 ; CC - number of small pips left, ranges from 10 to 00
 ; DD - no purpose rn
 
-player2 db 168
+player2 db 10101000b
 ; status byte for player 2, of the form AABBCCDD 
 ; default value is 10101000b
 ; AA - number of large pips left, ranges from 10 to 00
@@ -66,53 +77,50 @@ grid2 db '-+-+-', '$'
 buff db '%','$'
 ; just a buffer symbol
 
-p1str db "Player 1 $"
-p2str db "Player 2 $" 
+p1str db "Player 1 - Oo.$"
+p2str db "Player 2 - Xx*$" 
 lpipstr db "Large pips left :$"
 mpipstr db "Medium pips left:$"
 spipstr db "Small pips left :$" 
 currentstr db "Current Turn $"
 inputstr db "Enter the location and symbol (1-9, ABC) :$"
-invalidstr db "Invalid Input. Please re-enter: $" 
+invalidstr db "Invalid Input. Please re-enter: $"
+winnerstr db "Player _ has won. Congratulations! $" 
+; miscellaneous output strings
 
-loc dw 00h ; Stores the location (user input)
-sym db 00h ; Stores the pip value (user input)       
-count db 00h    ; Stores the count of pips 
+loc dw 00h    ; Stores the location (user input)
+sym db 00h    ; Stores the pip value (user input)       
+count db 00h  ; Stores the count of pips 
 
 .CODE 
 .STARTUP     
             
   LEA SI, matrix
   
- 
-  
-  
-  
-  
   
  
   CALL draw_matrix
+  
   HERE: 
   CALL user_input   
   CALL player1_find
   XOR currentP,11111111b 
   CALL draw_matrix 
+  
+  CALL make_top_matrix
+  CALL check_win
+  ; CALL check_draw
    
   CALL user_input 
   CALL player2_find
   XOR currentP,11111111b
-  CALL draw_matrix
-  JMP HERE
+  CALL draw_matrix 
   
-  ; add logic to check win/draw after each turn
+  CALL make_top_matrix
+  CALL check_win
+  ; CALL check_draw
   
-  
-  
-  
-  
-  
-  
-  
+  JMP HERE ; to continue the game
   
   
   JMP toend
@@ -120,16 +128,277 @@ count db 00h    ; Stores the count of pips
  
  
  
- 
- 
- 
- 
- 
   
   ; functions below this line, should not be run directly 
 ; ----------------------------------------------------------------------------- 
+  
+  ; function to check for draw, assuming a win has not occurred 
+; ----------------------------------------------------------------------------- 
+  check_draw PROC
+    LEA SI, top_matrix 
+    
+    MOV AX, 0
+    MOV BX, 0
+    MOV CX, 0
+    MOV DX, 0 
+      
+    
+    
+    
+    ret
+  check_draw ENDP  
+; -----------------------------------------------------------------------------
+
+    
+  
+  
+  
+ ; function to check for wins based on top matrix 
+; ----------------------------------------------------------------------------- 
+  check_win PROC
+    LEA SI, top_matrix 
+    
+    MOV AX, 0
+    MOV BX, 0
+    MOV CX, 0
+    MOV DX, 0  
+    
+    ; checking ROWS
+    ; check row 1
+    win_row1_test:
+    MOV AL, [SI]      ; take value of 1
+    CMP AL, 00h       ; if blank, skip
+    JZ win_row2_test
+    MOV AH, [SI+1]    ; take value of 2
+    CMP AL, AH        ; compare 1 and 2
+    JNE win_row2_test ; if 1!=2 then skip
+    MOV AH, [SI+2]    ; take value of 3
+    CMP AL, AH        ; compare 1 and 3
+    JNE win_row2_test ; if 1!=3 then skip
+    JE someone_won
+        
+    ; check row 2
+    win_row2_test:
+    MOV AL, [SI+3]      ; take value of 4
+    CMP AL, 00h       ; if blank, skip
+    JZ win_row3_test
+    MOV AH, [SI+4]    ; take value of 5
+    CMP AL, AH        ; compare 4 and 5
+    JNE win_row3_test ; if 4!=5 then skip
+    MOV AH, [SI+5]    ; take value of 6
+    CMP AL, AH        ; compare 4 and 6
+    JNE win_row3_test ; if 4!=6 then skip
+    JE someone_won 
+    
+    ; check row 3     
+    win_row3_test:        
+    MOV AL, [SI+6]      ; take value of 7
+    CMP AL, 00h       ; if blank, skip
+    JZ win_col1_test
+    MOV AH, [SI+7]    ; take value of 8
+    CMP AL, AH        ; compare 7 and 8
+    JNE win_col1_test ; if 7!=8 then skip
+    MOV AH, [SI+8]    ; take value of 9
+    CMP AL, AH        ; compare 1 and 9
+    JNE win_col1_test ; if 7!=9 then skip
+    JE someone_won
+    
+    
+    ; checking COLUMNS
+    ; check col 1
+    win_col1_test: 
+    MOV AL, [SI]      ; check 1 4 7
+    CMP AL, 00h       
+    JZ win_col2_test
+    MOV AH, [SI+3]   
+    CMP AL, AH        
+    JNE win_col2_test 
+    MOV AH, [SI+6]    
+    CMP AL, AH        
+    JNE win_col2_test 
+    JE someone_won
+        
+    ; check col 2
+    win_col2_test:
+    MOV AL, [SI+1]    ; check 2 5 8
+    CMP AL, 00h       
+    JZ win_col3_test
+    MOV AH, [SI+4]    
+    CMP AL, AH        
+    JNE win_col3_test 
+    MOV AH, [SI+7]    
+    CMP AL, AH        
+    JNE win_col3_test 
+    JE someone_won 
+    
+    ; check col 3     
+    win_col3_test:        
+    MOV AL, [SI+2]    ; check 3 6 9
+    CMP AL, 00h       
+    JZ win_dia1_test
+    MOV AH, [SI+5]    
+    CMP AL, AH        
+    JNE win_dia1_test 
+    MOV AH, [SI+8]    
+    CMP AL, AH       
+    JNE win_dia1_test 
+    JE someone_won
+    
+    
+    ; checking DIAGONALS
+    ; check left diag
+    win_dia1_test: 
+    MOV AL, [SI]      ; check 1 5 9
+    CMP AL, 00h       
+    JZ win_dia2_test
+    MOV AH, [SI+4]    
+    CMP AL, AH        
+    JNE win_dia2_test 
+    MOV AH, [SI+8]    
+    CMP AL, AH        
+    JNE win_dia2_test 
+    JE someone_won
+        
+    ; check right diag
+    win_dia2_test:
+    MOV AL, [SI+2]      ; check 3 5 7
+    CMP AL, 00h        
+    JZ exit_check_win
+    MOV AH, [SI+4]      
+    CMP AL, AH          
+    JNE exit_check_win  
+    MOV AH, [SI+6]      
+    CMP AL, AH          
+    JNE exit_check_win  
+    JE someone_won 
+     
+     
+     
+    
+    JMP exit_check_win
+    
+    
+    
+    
+    someone_won:
+    AND AL, 00011000b   ; check who
+    SHR AL, 3
+    XOR AL, 00000011b   ; 1 < 2 so the bits need to be swapped
+    ADD AL, 48                                
+    
+    MOV DL, 10                ; move cursor to appropriate place
+    MOV DH, 22
+    MOV AH, 2
+    INT 10h
+    
+    LEA SI, winnerstr
+    ADD SI, 7
+    MOV [SI], AL      ; update ouput string to correct winner 
+    
+    MOV DX, offset winnerstr  ; print winner string
+    MOV AH, 9
+    INT 21h
+    
+    JMP toend  
+    
+    
+    
+    exit_check_win:
+             
+  ret
+  check_win ENDP  
+; -----------------------------------------------------------------------------
+
+  
+  
+  
+ 
+ 
+; function to build the top matrix
+; ----------------------------------------------------------------------------- 
+  make_top_matrix PROC
+    LEA SI, matrix
+    LEA DI, top_matrix 
+    
+    MOV AX, 0
+    MOV BX, 0
+    MOV CX, 0
+    MOV DX, 0   
+    
+    
+    
+    MOV CX, 3 
+    top_out_loop:                 ; iterate rows
+      PUSH CX
+      MOV CX, 3
+      top_in_loop:                ; iterate cols
+        
+ 
+    
+        
+        MOV AL, [SI]                ; check which pip is on top
+                                    ; by testing the bits
+        TEST AL, 10010000b          ; this tests for X, O    
+        JZ top_med_test                 ; if neither, check for next largest  
+        TEST AL, 10000000b          ; check if X or if O
+        JNZ top_player1_pip
+        JZ top_player2_pip
+        
+        top_med_test:               
+        TEST AL, 01001000b          ; this tests for x, o
+        JZ top_sml_test
+        TEST AL, 01000000b
+        JNZ top_player1_pip
+        JZ top_player2_pip
+        
+        top_sml_test:
+        TEST AL, 00100100b          ; this tests for *, .
+        JZ top_blank_pip
+        TEST AL, 00100000b
+        JNZ top_player1_pip
+        JZ top_player2_pip
+        
+        
+        top_player1_pip:     ; map the results of testing to appropriate values as per data format
+        MOV AL, 11110000b
+        JMP top_build_done  
+         
+        top_player2_pip: 
+        MOV AL, 00001111b
+        JMP top_build_done  
+                     
+        top_blank_pip: 
+        MOV AL, 00000000b
+        JMP top_build_done 
+              
+        
+        
+        top_build_done: 
+        MOV [DI], AL  ; place the correct value in the top matrix
+
+        INC SI    ; move to next position for game matrix      
+        INC DI    ; move to next position for top matrix
+
+        LOOP top_in_loop
+      
+      POP CX
+      LOOP top_out_loop
+               
+  ret
+  make_top_matrix ENDP      
+; -----------------------------------------------------------------------------       
+       
+       
+       
+      
+       
+   
+       
+       
+       
 ; function to draw the matrix, player counts, and display current turn
-; does not change any values
+; does not change any values     
+; -----------------------------------------------------------------------------  
   draw_matrix PROC
     LEA SI, matrix
    
@@ -486,10 +755,10 @@ count db 00h    ; Stores the count of pips
    exitPrinter:     
    ret
   draw_matrix ENDP 
-  ;-------------------------------------------------------------------------------------------
+;-------------------------------------------------------------------------------------------
   
    
-  ; ---------Function 1 -----------------------------   
+; ---------Function 1 -----------------------------   
         ; user input - Takes the input from the user as '#S'
         ; # is position, 1-9
         ; S is size, A(big) B(med) C(small)
@@ -533,7 +802,7 @@ count db 00h    ; Stores the count of pips
       user_input ENDP   
         
         RET
-  ;--------------------------- Function-player2_find----------------------;
+;--------------------------- Function-player2_find----------------------;
       
         ;Player2_find-  Finding if A,B or C is avaiable  
         
@@ -626,7 +895,7 @@ count db 00h    ; Stores the count of pips
         ret
         
         
-    ;---------------------------FUNCTION 3-----------------------;
+;---------------------------FUNCTION 3-----------------------;
         
         
         locationp2_A PROC     
@@ -659,7 +928,7 @@ count db 00h    ; Stores the count of pips
         locationp2_A ENDP
         ret
              
-    ;----------------------------FUNCTION LOCATION B ---------------------      
+;----------------------------FUNCTION LOCATION B ---------------------      
              
         locationp2_B PROC 
         MOV AX, 0
@@ -699,7 +968,7 @@ count db 00h    ; Stores the count of pips
          
          
          
-        ;----------------------FUNCTION LOCATION_C----------------------------;             
+;----------------------FUNCTION LOCATION_C----------------------------;             
         
         locationp2_C PROC     
         ; if the location is more than 9 the input is invalid
@@ -733,7 +1002,7 @@ count db 00h    ; Stores the count of pips
         
         
         
-        ;--------------------------- Function-player1_find----------------------;
+;--------------------------- Function-player1_find----------------------;
       
         ;Player1_find-  Finding if A,B or C is avaiable  
         
@@ -831,7 +1100,7 @@ count db 00h    ; Stores the count of pips
         ret
         
         
-    ;---------------------------FUNCTION 3-----------------------;
+;---------------------------FUNCTION 3-----------------------;
         
         
         locationp1_A PROC     
@@ -864,7 +1133,7 @@ count db 00h    ; Stores the count of pips
         locationp1_A ENDP
         ret
              
-    ;----------------------------FUNCTION LOCATION B ---------------------      
+;----------------------------FUNCTION LOCATION B ---------------------      
              
         locationp1_B PROC 
         MOV AX, 0
@@ -900,7 +1169,7 @@ count db 00h    ; Stores the count of pips
                     
           
          
-        ;----------------------FUNCTION LOCATION_C----------------------------;             
+;----------------------FUNCTION LOCATION_C----------------------------;             
         
         locationp1_C PROC     
         ; if the location is more than 9 the input is invalid
@@ -931,7 +1200,11 @@ count db 00h    ; Stores the count of pips
         CALL player1_find
         locationp1_C ENDP
         ret
-                 
+
+; -----------------------------------------------------------------------------
+; -----------------------------------------------------------------------------
+; -----------------------------------------------------------------------------
+                   
               
 
   toend:      
